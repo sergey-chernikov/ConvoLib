@@ -1,0 +1,43 @@
+CMAKE_MINIMUM_REQUIRED( VERSION 3.10 )
+
+SET (CMAKE_CXX_STANDARD 20)
+
+SET(LIB_NAME ConvoLib)
+PROJECT(${LIB_NAME})
+
+IF (WIN32)
+  add_definitions(-DNOMINMAX)
+ENDIF ()
+
+IF (NOT ${CONVO_NO_BUILD_CURL})
+  add_definitions(-DCURL_STATICLIB)
+  add_definitions(-DBUILD_CURL)
+ENDIF ()
+
+IF (NOT ${CONVO_NO_BUILD_SPDLOG})
+  add_definitions(-DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_DEBUG)
+ENDIF ()
+
+SET(CONVO_BASE_LIB_NAME ConvoBase)
+add_subdirectory(base)
+
+IF (NOT CONVO_NO_BUILD_DB)
+  SET(CONVO_DB_LIB_NAME ConvoDB)
+  MESSAGE("building sub:db")
+  add_subdirectory(DB)
+ENDIF ()
+
+IF (NOT CONVO_NO_BUILD_NETWORKING)
+  MESSAGE("building sub:networking")
+  SET(CONVO_NETWORKING_LIB_NAME ConvoNetworking)
+  add_subdirectory(networking)
+ENDIF ()
+
+
+ADD_LIBRARY(${LIB_NAME})
+
+TARGET_LINK_LIBRARIES(${LIB_NAME}
+   ${CONVO_BASE_LIB_NAME}
+   ${CONVO_DB_LIB_NAME}
+   ${CONVO_NETWORKING_LIB_NAME}
+)
