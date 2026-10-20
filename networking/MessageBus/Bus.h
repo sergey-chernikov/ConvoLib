@@ -74,6 +74,7 @@ namespace convo {
          virtual std::string name() const { return name_; }
          QueueId id() const { return id_; }
          virtual void terminate() = 0;
+         size_t nbAdapters() const { return router_ ? router_->allAdapters().size() : 0; }
          virtual void bindAdapter(const std::shared_ptr<Adapter> &) = 0;
          virtual std::set<UserValue> supportedReceivers() const = 0;
 
