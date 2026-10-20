@@ -9,7 +9,7 @@ from component_configurator import Configurator
 class CurlSettings(Configurator):
     def __init__(self, settings):
         Configurator.__init__(self, settings)
-        self._version = '8_23_0'
+        self._version = '7_88_1' #'8_23_0'
         self._script_revision = '5'
         self._package_name = 'curl-' + self._version
         self._package_url = 'https://github.com/curl/curl/archive/refs/tags/' + self._package_name + '.tar.gz'

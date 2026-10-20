@@ -9,9 +9,9 @@ from component_configurator import Configurator
 class OpenSslSettings(Configurator):
     def __init__(self, settings):
         Configurator.__init__(self, settings)
-        self._major_ver = '3' #4
-        self._minor_ver = '6' #0
-        self._patch_ver = '5' #3
+        self._major_ver = '3' #3 #4
+        self._minor_ver = '5' #6 #0
+        self._patch_ver = '0' #5 #3
         self._version = self._major_ver + '.' + self._minor_ver + '.' + self._patch_ver
         self._package_name = 'openssl-openssl-' + self._version
         self._script_revision = '5'
