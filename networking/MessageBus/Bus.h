@@ -1,0 +1,152 @@
+#ifndef CONVO_MESSAGE_BUS_H
+#define CONVO_MESSAGE_BUS_H
+
+#include <atomic>
+#include <condition_variable>
+#include <deque>
+#include <map>
+#include <memory>
+#include <set>
+#include <thread>
+#include <vector>
+#include "MessageBus/Envelope.h"
+#include "base/PerfAccounting.h"
+
+namespace spdlog {
+   class logger;
+}
+
+namespace convo {
+   namespace msg {
+      class Adapter;
+
+      class RouterInterface
+      {
+      public:
+         virtual ~RouterInterface() = default;
+         virtual void bindAdapter(const std::shared_ptr<Adapter> &) = 0;
+         virtual std::vector<std::shared_ptr<Adapter>> process(const Envelope &) const = 0;
+         virtual void reset() = 0;
+         virtual std::set<UserValue> supportedReceivers() const = 0;
+         virtual void reportQueueStats(const std::string& queueName, const PerfAccounting&) = 0;
+         virtual std::shared_ptr<Adapter> obtainAdapterBy(const std::shared_ptr<User>&) const = 0;
+         virtual std::vector<std::shared_ptr<Adapter>> allAdapters() const = 0;
+         virtual bool isDefaultRoute(const std::shared_ptr<Adapter>&) const = 0;
+
+      protected:
+         virtual bool isDefaultRouted(const Envelope &) const = 0;
+      };
+
+      class Router : public RouterInterface
+      {
+      public:
+         Router(const std::shared_ptr<spdlog::logger> &);
+
+         void bindAdapter(const std::shared_ptr<Adapter> &) override;
+         std::set<UserValue> supportedReceivers() const override;
+         std::vector<std::shared_ptr<Adapter>> process(const Envelope &) const override;
+         std::vector<std::shared_ptr<Adapter>> allAdapters() const override { return allAdapters_; }
+         std::shared_ptr<Adapter> obtainAdapterBy(const std::shared_ptr<User>&) const override;
+         void reset() override;
+
+         void reportQueueStats(const std::string& queueName, const PerfAccounting&) override;
+         bool isDefaultRoute(const std::shared_ptr<Adapter>&) const override;
+
+      protected:
+         bool isDefaultRouted(const Envelope &) const override;
+
+      private:
+         std::shared_ptr<spdlog::logger>           logger_;
+         mutable std::mutex mutex_;
+         std::vector<std::shared_ptr<Adapter>>           allAdapters_;
+         std::map<UserValue, std::shared_ptr<Adapter>>   adapters_;
+         std::shared_ptr<Adapter>   supervisor_;
+         std::shared_ptr<Adapter>   defaultRoute_;
+      };
+
+      class QueueInterface
+      {
+      public:
+         QueueInterface(const std::shared_ptr<RouterInterface>& router
+            , const std::string& name = {});
+         virtual ~QueueInterface() = default;
+
+         virtual std::string name() const { return name_; }
+         QueueId id() const { return id_; }
+         virtual void terminate() = 0;
+         virtual void bindAdapter(const std::shared_ptr<Adapter> &) = 0;
+         virtual std::set<UserValue> supportedReceivers() const = 0;
+
+         virtual bool pushFill(Envelope &) = 0;
+         SeqId nextId() { return seqNo_++; }
+         SeqId resetId(SeqId);
+
+         virtual void joinThread() = 0;
+         void stop();
+
+      protected:
+         virtual bool accept(const Envelope&);
+         auto defer(const Envelope& env) { return deferredIds_.insert(env.id()); }
+         auto watchResponseTimeout(const Envelope& env) { return watchRequests_[env.foreignId()] = env; }
+         auto unwatchResponseTimeout(const SeqId respId) { return watchRequests_.erase(respId); }
+         SeqId idOf(const Envelope& env) const { return env.id(); }
+
+      protected:
+         const std::shared_ptr<RouterInterface> router_;
+         const QueueId           id_;
+         const std::string       name_;
+         std::atomic<SeqId>      seqNo_{ 1 };
+         SeqId             lastProcessedSeqNo_{ 0 };
+         std::set<SeqId>   deferredIds_;
+         std::map<SeqId, Envelope> watchRequests_;
+      };
+
+      class Queue_Locking : public QueueInterface
+      {
+      public:
+         Queue_Locking(const std::shared_ptr<RouterInterface>&
+            , const std::shared_ptr<spdlog::logger>&, const std::string& name = {}
+            , const size_t batchLimit = 500
+            , const std::chrono::seconds& accInterval = std::chrono::seconds{ 10 });
+         ~Queue_Locking() override;
+
+         void terminate() override;
+         void bindAdapter(const std::shared_ptr<Adapter> &) override;
+         std::set<UserValue> supportedReceivers() const override;
+
+         bool pushFill(Envelope &) override;
+
+         void joinThread() override;
+
+      private:
+         void process();
+
+      private:
+         std::shared_ptr<spdlog::logger>  logger_;
+         const size_t   batchLimit_;
+         const std::chrono::seconds accountingInterval_;
+         size_t   lastDeferredQueueSize_{ 0 };
+         std::deque<Envelope>    queue_;
+         std::condition_variable cvQueue_;
+         std::mutex              cvMutex_;
+         std::mutex              dataMutex_;
+         std::atomic_bool        running_{ true };
+         std::jthread            thread_;
+      };
+      using Queue = Queue_Locking;    // temporary hack to avoid name clashing with ThreadSafeClasses.h
+
+
+      class Bus
+      {
+      public:
+         virtual ~Bus() = default;
+
+         virtual void addAdapter(const std::shared_ptr<Adapter> &) = 0;
+
+         virtual void SetCommunicationDumpEnabled(bool) {};
+      };
+
+   } // namespace msg
+} // namespace convo
+
+#endif	// CONVO_MESSAGE_BUS_H
