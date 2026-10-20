@@ -296,7 +296,7 @@ void Queue_Locking::process()
                "validity checks (< {}) - skipping", name_, idOf(env), lastProcessedSeqNo_);
             continue;
          }
-         std::vector<std::shared_ptr<bs::message::Adapter>> adapters;
+         std::vector<std::shared_ptr<Adapter>> adapters;
          try {
             adapters = router_->process(env);
          }
@@ -347,7 +347,7 @@ void Queue_Locking::process()
             ++nbProcessed;
             const bool deferred = (deferredIds_.find(idOf(env)) != deferredIds_.end());
             const auto& process = [this, env, timeNow, &acc, &deferredQueue, deferred]
-               (const std::shared_ptr<bs::message::Adapter>&adapter)
+               (const std::shared_ptr<Adapter>&adapter)
             {
                const auto& supportedContentTypes = adapter->supportedContent();
                const bool ctSupported = supportedContentTypes.empty() ? true
@@ -357,7 +357,7 @@ void Queue_Locking::process()
                      logger_->error("[Queue::process::{}] content type {} from {}"
                         " is not supported by {} (#{}) [{}] {}", name_, (int)env.contentType
                         , env.sender->name(), adapter->name(), env.foreignId()
-                        , env.message.size(), bs::toHex(env.message));
+                        , env.message.size(), convo::toHex(env.message));
                   }
                   return;
                }
@@ -379,7 +379,7 @@ void Queue_Locking::process()
                            " #{} from {} to {} residing for {}s\n{}"
                            , name_, id(), env.foreignId(), env.sender->name()
                            , env.receiver ? env.receiver->name() : "null"
-                           , queueDiff / 1000.0, bs::toHex(env.message));
+                           , queueDiff / 1000.0, convo::toHex(env.message));
                         if (queueDiff > long(batchLimit_ * 6)) {
                            logger_->critical(logMsg);
                         }
@@ -476,7 +476,7 @@ void Queue_Locking::process()
                if (adapters.empty()) {
                   continue;   // empty result is intended for skipping a message silently (e.g. by supervisor)
                }
-               std::shared_ptr<bs::message::Adapter> curAdapter;
+               std::shared_ptr<Adapter> curAdapter;
                try {
                   for (const auto& adapter : adapters) {
                      curAdapter = adapter;
@@ -569,7 +569,7 @@ void Queue_Locking::process()
          if ((env.posted + env.repeatInterval) < timeNow) {
             logger_->warn("[Queue::process::{}] request #{} from {} to {} timed out\n{}"
                , name_, env.foreignId(), env.sender->name()
-               , env.receiver ? env.receiver->name() : "null", bs::toHex(env.message));
+               , env.receiver ? env.receiver->name() : "null", convo::toHex(env.message));
             auto adapters = router_->process(itWatchReq->second);
             try {
                adapters.push_back(router_->obtainAdapterBy(env.sender));

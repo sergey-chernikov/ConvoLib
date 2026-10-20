@@ -192,7 +192,7 @@ namespace convo {
             } else if ((std::is_same<T, float>::value || std::is_same<T, double>::value) && std::holds_alternative<double>(v)) {
                return static_cast<T>(std::get<double>(v));
             } else if (std::is_same<T, FixedDecimalValue>::value ||
-               std::is_same<T, bs::ser::BinaryData>::value) {
+               std::is_same<T, ser::BinaryData>::value) {
                return T{}; //unable to retrive compound type
             }
             else {
@@ -319,7 +319,7 @@ namespace convo {
          {
          public:
             VarChar(const std::string_view& name, unsigned len, const std::set<Prop>& flags = {})
-               : Column(name, fmt::format("VARCHAR({})", len), flags)
+               : Column(name, std::format("VARCHAR({})", len), flags)
             { maxLength_ = len; }
          };
 
@@ -373,7 +373,7 @@ namespace convo {
       class VersionTable : public Table   //pre-defined alembic version table to track schema
       {
       public:
-         VersionTable() : bs::db::Table("alembic_version") {}
+         VersionTable() : Table("alembic_version") {}
          std::vector<Column> columns() const override
          {
             return {

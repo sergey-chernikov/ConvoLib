@@ -1,5 +1,5 @@
-#include "Message/Adapter.h"
-#include "Message/Bus.h"
+#include "MessageBus/Adapter.h"
+#include "MessageBus/Bus.h"
 #ifdef CONVO_BUILD_PROTO
 #include "ProtoUtils.h"
 #endif
@@ -101,7 +101,7 @@ SeqId Adapter::pushBroadcast(const std::shared_ptr<User>& sender
    return 0;
 }
 
-#ifndef DISABLE_CAPNP
+#ifdef BUILD_CAPNP
 SeqId Adapter::pushRequest(const std::shared_ptr<User>& sender
    , const std::shared_ptr<User>& receiver, capnp::MessageBuilder& msg
    , const TimeStamp& execAt, unsigned rptCount, const bus_clock::duration& rptInterval)
@@ -165,7 +165,7 @@ bool SharedAdapter::pushFill(Envelope& env)
 }
 
 
-bs::ProcessingResult PipeAdapter::process(const Envelope &env)
+convo::ProcessingResult PipeAdapter::process(const Envelope &env)
 {
    if (!endpoint_) {
       return ProcessingResult::Error;
@@ -211,7 +211,7 @@ void RelayAdapter::setQueue(const std::shared_ptr<QueueInterface>& queue)
    }
 }
 
-bs::ProcessingResult RelayAdapter::process(const Envelope& env)
+convo::ProcessingResult RelayAdapter::process(const Envelope& env)
 {
    if (!isInitialized()) {
       throw std::runtime_error("invalid initialization");
@@ -244,7 +244,7 @@ bool RelayAdapter::processBroadcast(const Envelope& env)
    return true;
 }
 
-bs::ProcessingResult RelayAdapter::relay(const Envelope& env)
+convo::ProcessingResult RelayAdapter::relay(const Envelope& env)
 {
    if (env.isBC() || env.relayed) {
       return ProcessingResult::Ignored;

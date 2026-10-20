@@ -215,7 +215,7 @@ static std::string readFile(const std::string& filename)
    return buffer.str();
 }
 
-std::shared_ptr<HttpOut> bs::HttpHandler::processData(const std::shared_ptr<HttpIn>& in)
+std::shared_ptr<HttpOut> HttpHandler::processData(const std::shared_ptr<HttpIn>& in)
 {
 #ifdef BUILD_CURL
    if (!curl_) {

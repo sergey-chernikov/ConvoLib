@@ -178,7 +178,7 @@ std::vector<std::string> utils::readDir(const std::string &path
 #ifdef _MSC_VER
 #pragma warning(disable : 4996)
 #endif
-bool SystemFileUtils::rmDir(const std::string &path)
+bool utils::rmDir(const std::string &path)
 {
    const auto files = readDir(path);
    bool result = true;
@@ -214,7 +214,7 @@ std::string paths::appDataLocation(const std::string& appRoot)
 std::string paths::configDataLocation(const std::string& appRoot)
 {
 #ifdef WIN32
-   return appDataLocation();
+   return appDataLocation(appRoot);
 #else
    std::string result = getenv("HOME");
    result += "/" + kConfigDir + "/" + appRoot;

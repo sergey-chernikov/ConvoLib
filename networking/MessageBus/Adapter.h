@@ -56,7 +56,7 @@ namespace convo {
          }
 
       protected:
-         virtual void reportInvalidSender(const std::shared_ptr<User>&, bs::message::SeqId) {}
+         virtual void reportInvalidSender(const std::shared_ptr<User>&, SeqId) {}
          virtual bool pushFill(Envelope &);
 
          SeqId pushRequest(const std::shared_ptr<User>& sender
@@ -71,28 +71,28 @@ namespace convo {
          SeqId pushResponse(const std::shared_ptr<User>& sender
             , const std::shared_ptr<User>& receiver
             , const std::string& msg, ContentType ct = ContentType::text
-            , SeqId respId = (bs::message::SeqId)bs::message::EnvelopeType::Update);
+            , SeqId respId = (SeqId)EnvelopeType::Update);
          virtual SeqId pushResponse(const std::shared_ptr<User>& sender
-            , const bs::message::Envelope& envReq, const std::string& msg
+            , const Envelope& envReq, const std::string& msg
             , ContentType ct = ContentType::text, unsigned rptCount = 0
             , const bus_clock::duration& rptInterval = {});
          SeqId pushUpdate(const std::shared_ptr<User>& sender
             , const std::shared_ptr<User>& receiver, const std::string&
             , ContentType ct = ContentType::json
-            , SeqId respId = (bs::message::SeqId)bs::message::EnvelopeType::Update);
+            , SeqId respId = (SeqId)EnvelopeType::Update);
          SeqId pushBroadcast(const std::shared_ptr<User>& sender
             , const std::string& msg, bool global = false, ContentType ct = ContentType::text);
 
-#ifndef DISABLE_CAPNP
+#ifdef BUILD_CAPNP
          SeqId pushRequest(const std::shared_ptr<User>& sender
             , const std::shared_ptr<User>& receiver, capnp::MessageBuilder&
             , const TimeStamp& execAt = {}, unsigned rptCount = 0
             , const bus_clock::duration& rptInterval = {});
          SeqId pushUpdate(const std::shared_ptr<User>& sender
             , const std::shared_ptr<User>& receiver, capnp::MessageBuilder&
-            , SeqId respId = (bs::message::SeqId)bs::message::EnvelopeType::Update);
+            , SeqId respId = (SeqId)EnvelopeType::Update);
          virtual SeqId pushResponse(const std::shared_ptr<User>& sender
-            , const bs::message::Envelope& envReq, capnp::MessageBuilder&
+            , const Envelope& envReq, capnp::MessageBuilder&
             , unsigned rptCount = 0, const bus_clock::duration& rptInterval = {});
          SeqId pushBroadcast(const std::shared_ptr<User>& sender
             , capnp::MessageBuilder& msg, bool global = false);
