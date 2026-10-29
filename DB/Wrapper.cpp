@@ -187,15 +187,15 @@ QuerySQL& QuerySQL::select(const std::vector<ColumnId>& columns)
       }
    }
    query_ = "SELECT ";
-   for (int i = 0; i < columns.size(); ++i) {
-      auto col = columns.at(i);
+   for (int i = 0; i < columns_.size(); ++i) {
+      auto col = columns_.at(i);
       if (kSQLReservedWords.find(col()) == kSQLReservedWords.end()) {
          query_ += col();
       }
       else {
          query_ += "\"" + col() + "\"";
       }
-      if (i < (columns.size() - 1)) {
+      if (i < (columns_.size() - 1)) {
          query_ += ", ";
       }
    }
