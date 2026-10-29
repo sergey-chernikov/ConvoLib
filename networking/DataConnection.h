@@ -13,7 +13,7 @@ namespace convo {
    class DataConnection
    {
    public:
-      DataConnection(const std::shared_ptr<DataConnectionListener>& listener = nullptr)
+      DataConnection(DataConnectionListener* listener = nullptr)
          : listener_(listener)  {}
       virtual ~DataConnection() noexcept = default;
 
@@ -27,7 +27,7 @@ namespace convo {
       virtual bool send(const std::string& data) = 0;
 
       virtual bool open(const std::string& host, const std::string& port
-         , const std::shared_ptr<DataConnectionListener>& listener) = 0;
+         , DataConnectionListener* listener = nullptr) = 0;
       virtual bool close() = 0;
 
       virtual bool isActive() const = 0;
@@ -37,15 +37,15 @@ namespace convo {
       virtual bool timer(std::chrono::milliseconds /*timeout*/, TimerCallback) { return false; }
 
    protected:
-      void setListener(const std::shared_ptr<DataConnectionListener>& listener)
+      void setListener(DataConnectionListener* listener)
       {
          listener_ = listener;
       }
 
-      bool haveListener() const { return (listener_.lock() != nullptr); }
+      bool haveListener() const { return (listener_ != nullptr); }
       void detachFromListener();
 
-      virtual void onRawDataReceived(const std::string& /*rawData*/) {}
+      virtual void onRawDataReceived(const std::string&) {}
 
       void notifyOnData(const std::string& data);
       virtual void notifyOnConnected();
@@ -53,7 +53,7 @@ namespace convo {
       void notifyOnError(const DataConnectionListener::Error);
 
    protected:
-      std::weak_ptr<DataConnectionListener> listener_;
+      DataConnectionListener* listener_;
    };
 
 }

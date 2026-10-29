@@ -78,7 +78,7 @@ namespace convo {
             , const bus_clock::duration& rptInterval = {});
          SeqId pushUpdate(const std::shared_ptr<User>& sender
             , const std::shared_ptr<User>& receiver, const std::string&
-            , ContentType ct = ContentType::json
+            , ContentType ct = ContentType::text
             , SeqId respId = (SeqId)EnvelopeType::Update);
          SeqId pushBroadcast(const std::shared_ptr<User>& sender
             , const std::string& msg, bool global = false, ContentType ct = ContentType::text);

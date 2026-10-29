@@ -50,7 +50,7 @@ void WorkerPool::processQueued(const std::shared_ptr<InData>& inData
 			newThread(w, queue, qIndex);
 		}
 		else {
-#if 0
+#if 1	//FIXME
 			auto itThr = thrByQueue.begin();
 			while (itThr != thrByQueue.end()) {
 				if (itThr->second->isRunning()) {
@@ -95,48 +95,56 @@ void WorkerPool::cancel()
 	threads_.clear();
 }
 
-void WorkerPool::newThread(const std::shared_ptr<Worker>& w
+void WorkerPool::newThread(const std::shared_ptr<Worker>& worker
 	, const std::shared_ptr<WorkerQueue>& queue, unsigned qIndex)
 {
-	threads_[qIndex].push_back({std::jthread([this, w, queue, qIndex]
+	threads_[qIndex].push_back({std::jthread([this, worker, queue, qIndex]
 	{
-		w->setQueue(queue);
-		while (w && w->isRunning()) {
+		worker->setQueue(queue);
+      std::weak_ptr<Worker> w = worker;
+		while (w.lock() && w.lock()->isRunning()) {
 			const auto nbPendingItems = queue->nbPending();
 			if (nbPendingItems == 0) {
 				queue->wait();
 			}
 			else if (nbPendingItems > 10000000) {
 				queue->clear();
-				if (w && w->isRunning()) {
-					w->cancel();
+				const auto& wo = w.lock();
+				if (wo && wo->isRunning()) {
+					wo->cancel();
 				}
 				throw std::runtime_error("worker doesn't manage with processing - "
 					+ std::to_string(nbPendingItems) + " items accumulated");
 			}
-			if (!w || !w->isRunning()) {
+			if (!w.lock() || !w.lock()->isRunning()) {
 				break;
 			}
+			if (!w.lock()->isReady()) {
+            std::this_thread::sleep_for(std::chrono::milliseconds{ 10 });
+				continue;
+         }
 			const auto& data = queue->pop();
 			if (!data.first) {
 				continue;
 			}
-			if (!w || !w->isRunning()) {
+			if (!w.lock() || !w.lock()->isRunning()) {
 				break;
 			}
 			auto& nbProcessing = nbProcessing_[qIndex];
 			nbProcessing++;
-			doProcess(w, data.first, data.second);
+			doProcess(w.lock(), data.first, data.second);
 			nbProcessing--;
-#if 0	//FIXME: with coroutines likely
-			//std::lock_guard<std::mutex> lock(threadsMutex_);
+#if 1	//FIXME: with coroutines likely
 			if (queue->empty() && (nbProcessing < 2)
 				&& (threads_[qIndex].size() > nbThreadsThreshold_)) {
-				w->cancel();
+            const auto& wo = w.lock();
+				if (wo) {
+					wo->cancel();
+				}
 			}
 #endif
 		}
-	}), w});
+	}), worker});
 }
 
 void WorkerPool::doProcess(const std::shared_ptr<Worker>& w

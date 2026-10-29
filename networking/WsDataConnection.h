@@ -36,7 +36,8 @@ namespace convo {
       class DataConnection : public convo::DataConnection
       {
       public:
-         DataConnection(const std::shared_ptr<spdlog::logger>& logger, DataConnectionParams params);
+         DataConnection(const std::shared_ptr<spdlog::logger>&, DataConnectionParams
+            , DataConnectionListener* listener = nullptr);
          ~DataConnection() override;
 
          DataConnection(const DataConnection&) = delete;
@@ -45,7 +46,7 @@ namespace convo {
          DataConnection& operator = (DataConnection&&) = delete;
 
          bool open(const std::string& host, const std::string& port
-            , const std::shared_ptr<DataConnectionListener>&) override;
+            , DataConnectionListener* listener = nullptr) override;
          bool close() override;
 
          bool send(const std::string& data) override;

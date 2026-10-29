@@ -34,8 +34,9 @@ namespace convo {
 using namespace convo::ws;
 
 DataConnection::DataConnection(const std::shared_ptr<spdlog::logger> &logger
-   , DataConnectionParams params)
-   : logger_(logger), params_(std::move(params)), reconnectTimer_(new TimerStruct)
+   , DataConnectionParams params, DataConnectionListener* listener)
+   : convo::DataConnection(listener), logger_(logger), params_(std::move(params))
+   , reconnectTimer_(std::make_unique<TimerStruct>())
 {
    // lws will use default value of 30% for jitter
    retryTable_ = std::make_unique<lws_retry_bo>();
@@ -54,11 +55,12 @@ DataConnection::~DataConnection()
 }
 
 bool DataConnection::open(const std::string &host, const std::string &port
-   , const std::shared_ptr<DataConnectionListener>& listener)
+   , DataConnectionListener* listener)
 {
    close();
-
-   listener_ = listener;
+   if (listener) {
+      listener_ = listener;
+   }
    host_ = host;
    port_ = std::stoi(port);
    shuttingDown_ = false;
@@ -102,7 +104,7 @@ bool DataConnection::close()
    lws_context_destroy(context_);
 
    context_ = nullptr;
-   listener_.reset();
+   listener_ = nullptr;
    newPackets_ = {};
    allPackets_ = {};
    currFragment_ = {};
@@ -256,9 +258,8 @@ int DataConnection::callback(lws *wsi, int reason, void *user, void *in, size_t 
                //TODO: this blindly takes in the first packet as the session cookie, redo this.
                cookie_ = packet.payload; 
                state_ = State::Connected;
-               const auto& listener = listener_.lock();
-               if (listener) {
-                  listener->onConnected();
+               if (listener_) {
+                  listener_->onConnected();
                }
                requestWriteIfNeeded();
                break;
@@ -295,9 +296,8 @@ int DataConnection::callback(lws *wsi, int reason, void *user, void *in, size_t 
                      break;
                   }
                   case Packet::Type::Data: {
-                     const auto& listener = listener_.lock();
-                     if (listener) {
-                        listener->onDataReceived(packet.payload);
+                     if (listener_) {
+                        listener_->onDataReceived(packet.payload);
                      }
                      recvCounter_++;
                      break;
@@ -422,21 +422,17 @@ int DataConnection::callback(lws *wsi, int reason, void *user, void *in, size_t 
                case State::Connected:
                case State::WaitingResumedResponse:
                case State::Reconnecting:
-               case State::Closing: {
-                  const auto& listener = listener_.lock();
-                  if (listener) {
-                     listener->onDisconnected();
+               case State::Closing:
+                  if (listener_) {
+                     listener_->onDisconnected();
                   }
-               }
                   break;
                case State::Connecting:
                case State::WaitingNewResponse:
-               case State::Closed: {
-                  const auto& listener = listener_.lock();
-                  if (listener) {
-                     listener->onError(DataConnectionListener::Error::UndefinedSocket);
+               case State::Closed:
+                  if (listener_) {
+                     listener_->onError(DataConnectionListener::Error::UndefinedSocket);
                   }
-               }
                   break;
             }
             state_ = State::Closed;
@@ -516,14 +512,12 @@ void DataConnection::processError()
          scheduleReconnect();
          break;
       }
-      case State::Closing: {
-         const auto& listener = listener_.lock();
-         if (listener) {
-            listener->onDisconnected();
+      case State::Closing:
+         if (listener_) {
+            listener_->onDisconnected();
          }
          state_ = State::Closed;
          break;
-      }
       case State::Closed: {
          break;
       }
@@ -532,23 +526,22 @@ void DataConnection::processError()
 
 void DataConnection::processFatalError()
 {
-   const auto& listener = listener_.lock();
-   if (listener) {
+   if (listener_) {
       switch (state_) {
       case State::Connecting:
       case State::WaitingNewResponse:
-         listener->onError(DataConnectionListener::Error::UndefinedSocket);
+         listener_->onError(DataConnectionListener::Error::UndefinedSocket);
          break;
 
       case State::Closing:
-         listener->onDisconnected();
+         listener_->onDisconnected();
          break;
 
       case State::Reconnecting:
       case State::Connected:
       case State::WaitingResumedResponse:
-         listener->onDisconnected();
-         listener->onError(DataConnectionListener::Error::UndefinedSocket);
+         listener_->onDisconnected();
+         listener_->onError(DataConnectionListener::Error::UndefinedSocket);
          break;
 
       case State::Closed:

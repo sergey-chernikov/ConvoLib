@@ -173,6 +173,19 @@ QuerySQL& QuerySQL::select(const std::vector<ColumnId>& columns)
    isSelect_ = true;
    const auto& tableName = tables_.cbegin()->first;
    columns_ = columns;
+   if (columns_.empty()) {
+      if (tables_.size() == 1) {
+         for (const auto& col : tables_.cbegin()->second->columns()) {
+            columns_.push_back(col.name());
+         }
+      } else {
+         for (const auto& tbl : tables_) {
+            for (const auto& col : tbl.second->columns()) {
+               columns_.push_back({ tbl.first, col.name() });
+            }
+         }
+      }
+   }
    query_ = "SELECT ";
    for (int i = 0; i < columns.size(); ++i) {
       auto col = columns.at(i);

@@ -34,9 +34,9 @@ namespace convo {
 
    public:
       virtual void onDataReceived(const std::string& data) = 0;
-      virtual void onConnected() = 0;
-      virtual void onDisconnected() = 0;
-      virtual void onError(const Error) = 0;
+      virtual void onConnected() {}
+      virtual void onDisconnected() {}
+      virtual void onError(const Error) {}
    };
 
 

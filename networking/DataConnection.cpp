@@ -5,37 +5,33 @@ using namespace convo;
 
 void DataConnection::detachFromListener()
 {
-   listener_.reset();
+   listener_ = nullptr;
 }
 
 void DataConnection::notifyOnData(const std::string& data)
 {
-   const auto listener = listener_.lock();
-   if (listener) {
-      listener->onDataReceived(data);
+   if (listener_) {
+      listener_->onDataReceived(data);
    }
 }
 
 void DataConnection::notifyOnConnected()
 {
-   const auto listener = listener_.lock();
-   if (listener) {
-      listener->onConnected();
+   if (listener_) {
+      listener_->onConnected();
    }
 }
 
 void DataConnection::notifyOnDisconnected()
 {
-   const auto listener = listener_.lock();
-   if (listener) {
-      listener->onDisconnected();
+   if (listener_) {
+      listener_->onDisconnected();
    }
 }
 
 void DataConnection::notifyOnError(DataConnectionListener::Error errorCode)
 {
-   const auto listener = listener_.lock();
-   if (listener) {
-      listener->onError(errorCode);
+   if (listener_) {
+      listener_->onError(errorCode);
    }
 }

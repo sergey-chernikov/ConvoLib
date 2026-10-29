@@ -20,8 +20,7 @@ bool SqliteEngine::isOpen() const
 
 bool SqliteEngine::open()
 {
-   const int rc = sqlite3_open(dbName_.c_str(), &db_);
-   if (rc != SQLITE_OK) {
+   if (sqlite3_open(dbName_.c_str(), &db_) != SQLITE_OK) {
       lastError_ = "open DB " + dbName_ + " failed: " + sqlite3_errmsg(db_);
       return false;
    }
