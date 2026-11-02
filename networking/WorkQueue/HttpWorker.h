@@ -111,7 +111,8 @@ namespace convo {
          , const HttpBasicAuth& auth = {});
       ~HttpHandler();
 
-      static std::string urlEncoded(const HttpParams&);
+      static std::string urlEncode(const std::string&);
+      static std::string urlEncoded(const HttpParams&, bool escape = true);
 
    protected:
       void dumpHeaders(const HttpHeaders&);

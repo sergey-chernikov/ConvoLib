@@ -40,6 +40,7 @@ namespace convo {
    {
    public:
       virtual bool accepts(const std::shared_ptr<InData>&) const { return true; }
+      virtual std::string name() const = 0;
 
       size_t size() const;
       size_t nbPending() const;
@@ -156,9 +157,9 @@ namespace convo {
    class WorkerPool
    {
    public:
-      WorkerPool(const unsigned int nbThreadsThreshold = 1
-         , const unsigned int threadLimit = std::thread::hardware_concurrency() / 2
-         , const std::vector<std::shared_ptr<WorkerQueue>>& queues = {});
+      WorkerPool(const std::vector<std::shared_ptr<WorkerQueue>>& queues = {}
+         , const unsigned nbThreadsThreshold = 1
+         , const unsigned threadLimit = std::thread::hardware_concurrency() / 2);
       virtual ~WorkerPool();
 
       virtual void processQueued(const std::shared_ptr<InData>&, const Callback&);

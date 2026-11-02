@@ -160,9 +160,16 @@ HttpHandler::~HttpHandler()
 #endif
 }
 
-static std::string urlEncode(const std::string& str)
+std::string HttpHandler::urlEncode(const std::string& str)
 {
    std::string result;
+#ifdef BUILD_CURL
+   char* output = curl_easy_escape(curl_easy_init(), str.c_str(), str.length());
+   result = output;
+   if (output) {
+      curl_free(output);
+   }
+#else
    for (const auto& c : str) {
       if (isalnum(c) || (c == '-') || (c == '_') || (c == '.') || (c == '~')) {
          result += c;
@@ -171,10 +178,11 @@ static std::string urlEncode(const std::string& str)
          result += fmt::format("%{:02X}", (unsigned char)c);
       }
    }
+#endif
    return result;
 }
 
-std::string HttpHandler::urlEncoded(const HttpParams& params)
+std::string HttpHandler::urlEncoded(const HttpParams& params, bool escape)
 {
    if (params.empty()) {
       return {};
@@ -184,7 +192,7 @@ std::string HttpHandler::urlEncoded(const HttpParams& params)
       if (pair.first.empty()) {
          continue;
       }
-      result += pair.first + "=" + urlEncode(pair.second) + "&";
+      result += pair.first + "=" + (escape ? urlEncode(pair.second) : pair.second) + "&";
    }
    if (!result.empty()) {
       result.pop_back();

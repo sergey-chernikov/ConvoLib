@@ -5,11 +5,17 @@
 
 using namespace convo;
 
-WorkerPool::WorkerPool(const unsigned int nbThreadsThreshold
-	, const unsigned int threadLimit, const std::vector<std::shared_ptr<WorkerQueue>>& queues)
+class GenericWQ : public WorkerQueue
+{
+public:
+	std::string name() const override final { return "generic"; }
+};
+
+WorkerPool::WorkerPool(const std::vector<std::shared_ptr<WorkerQueue>>& queues
+	, const unsigned nbThreadsThreshold, const unsigned threadLimit)
 	: threadLimit_((threadLimit > 0) ? threadLimit : 1), nbThreadsThreshold_(nbThreadsThreshold)
 	, queues_(queues.empty() ? std::vector<std::shared_ptr<WorkerQueue>>
-		{std::make_shared<WorkerQueue>()} : queues)
+		{std::make_shared<GenericWQ>()} : queues)
 	, nbProcessing_(queues_.size())
 {}
 
