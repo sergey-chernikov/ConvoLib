@@ -33,7 +33,7 @@ HttpGetHandler::HttpGetHandler(const std::shared_ptr<spdlog::logger>& logger
    : HttpHandler(logger, mtls, dumpComm, proxy, auth)
 {
 #ifdef BUILD_CURL
-   curl_easy_setopt(curl_, CURLOPT_HTTPGET, 1);
+   curl_easy_setopt(curl_, CURLOPT_HTTPGET, 1L);
    curl_easy_setopt(curl_, CURLOPT_ACCEPT_ENCODING, NULL); 
 #endif
 }
@@ -49,6 +49,16 @@ std::shared_ptr<HttpOut> HttpGetHandler::processData(const std::shared_ptr<InHtt
    return result;
 }
 
+
+HttpPostHandler::HttpPostHandler(const std::shared_ptr<spdlog::logger>& logger
+   , const MTLSsettings& mtls, bool dumpComm, const ProxySettings& proxySettings
+   , const HttpBasicAuth& auth)
+   : HttpHandler(logger, mtls, dumpComm, proxySettings, auth)
+{
+#ifdef BUILD_CURL
+   curl_easy_setopt(curl_, CURLOPT_POST, 1L);
+#endif
+}
 
 std::shared_ptr<HttpOut> HttpPostHandler::processData(const std::shared_ptr<InHttpPost>& in)
 {
@@ -164,7 +174,8 @@ std::string HttpHandler::urlEncode(const std::string& str)
 {
    std::string result;
 #ifdef BUILD_CURL
-   char* output = curl_easy_escape(curl_easy_init(), str.c_str(), str.length());
+   static const auto g_curl = curl_easy_init();
+   char* output = curl_easy_escape(g_curl, str.c_str(), str.length());
    result = output;
    if (output) {
       curl_free(output);
@@ -284,19 +295,21 @@ void HttpHandler::handleRequest(const std::string& method, const std::shared_ptr
 #ifdef BUILD_CURL
    struct curl_slist* curlHeaders = NULL;
    for (const auto& h : headers) {
-      curlHeaders = curl_slist_append(curlHeaders, (h.first + ": " + h.second).c_str());
+      curlHeaders = curl_slist_append(curlHeaders, (h.first + ":" + h.second).c_str());
    }
-   curlHeaders = curl_slist_append(curlHeaders, ("Keep-Alive: timeout=5, max=10000"));
-   curlHeaders = curl_slist_append(curlHeaders, ("Connection: Keep-Alive"));
+   //curlHeaders = curl_slist_append(curlHeaders, ("Keep-Alive: timeout=5, max=10000"));
+   //curlHeaders = curl_slist_append(curlHeaders, ("Connection: Keep-Alive"));
 
    std::string response;
    if (body == "<empty>") {
       body.clear();
    }
    mtx_.lock();
-   curl_easy_setopt(curl_, CURLOPT_HTTPHEADER, curlHeaders);
+   if (!headers.empty()) {
+      curl_easy_setopt(curl_, CURLOPT_HTTPHEADER, curlHeaders);
+   }
    curl_easy_setopt(curl_, CURLOPT_URL, url.c_str());
-   if (!body.empty() || (method == "POST")) {
+   if ((method == "POST") && !body.empty()) {
       curl_easy_setopt(curl_, CURLOPT_POSTFIELDS, body.data());
    }
    curl_easy_setopt(curl_, CURLOPT_WRITEDATA, &response);

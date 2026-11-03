@@ -174,10 +174,9 @@ namespace convo {
    class HttpPostHandler : public HandlerImpl<InHttpPost, HttpOut>, public HttpHandler
    {
    public:
-      HttpPostHandler(const std::shared_ptr<spdlog::logger>& logger
-         , const MTLSsettings& mtls, bool dumpComm = true
-         , const ProxySettings& proxySettings = {}, const HttpBasicAuth& auth = {})
-         : HttpHandler(logger, mtls, dumpComm, proxySettings, auth) {}
+      HttpPostHandler(const std::shared_ptr<spdlog::logger>&, const MTLSsettings&
+         , bool dumpComm = true, const ProxySettings& proxySettings = {}
+         , const HttpBasicAuth& auth = {});
       ~HttpPostHandler() override = default;
 
       std::shared_ptr<HttpOut> processData(const std::shared_ptr<InHttpPost>&) override;

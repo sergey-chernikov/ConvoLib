@@ -64,6 +64,7 @@ bool SqliteEngine::execute(const Query* query)
       lastError_ = "DB is not open";
       return false;
    }
+   lastError_.clear();
    sqlite3_stmt* stmt = nullptr;
    if (!prepare(query, &stmt)) {
       return false;
@@ -100,12 +101,12 @@ bool SqliteEngine::execute(const std::string& query)
       lastError_ = "DB is not open";
       return false;
    }
-   const int rc = sqlite3_exec(db_, query.c_str(), nullptr, nullptr, nullptr);
-   if (rc != SQLITE_OK) {
-      lastError_ = sqlite3_errmsg(db_);
-      return false;
+   if (sqlite3_exec(db_, query.c_str(), nullptr, nullptr, nullptr) == SQLITE_OK) {
+      lastError_.clear();
+      return true;
    }
-   return true;
+   lastError_ = sqlite3_errmsg(db_);
+   return false;
 }
 
 Data SqliteEngine::fetch(const Query* query)
