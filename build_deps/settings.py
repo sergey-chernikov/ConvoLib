@@ -17,6 +17,7 @@ class Settings:
         self._is_windows = False
         self._is_linux = False
         self._is_osx = False
+        self._is_bsd = False
 
         system_name = platform.system()
         if system_name == 'Windows':
@@ -24,8 +25,13 @@ class Settings:
             self._3rdparty_dir = os.getenv('DEV_3RD_ROOT', os.path.join('d:', '3rd'))
         elif system_name == 'Darwin':
             self._is_osx = True
+            self._is_bsd = True
         elif system_name == 'Linux':
             self._is_linux = True
+        elif system_name == 'FreeBSD':
+            self._is_bsd = True
+        elif system_name == 'OpenBSD':
+            self._is_bsd = True
         else:
             raise EnvironmentError('System is not defined: ' + system_name)
 
