@@ -94,7 +94,7 @@ HttpHandler::HttpHandler(const std::shared_ptr<spdlog::logger>& logger
    curl_easy_setopt(curl_, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
    curl_easy_setopt(curl_, CURLOPT_WRITEFUNCTION, writeToString);
    curl_easy_setopt(curl_, CURLOPT_PIPEWAIT, 0L);
-   curl_easy_setopt(curl_, CURLOPT_TIMEOUT, 10L);
+   curl_easy_setopt(curl_, CURLOPT_TIMEOUT, 23L);
 
    if (!basicAuth.empty()) {
       curl_easy_setopt(curl_, CURLOPT_HTTPAUTH, (long)CURLAUTH_BASIC);
