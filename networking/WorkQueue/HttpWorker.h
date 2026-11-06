@@ -1,5 +1,5 @@
 #ifndef CONVO_HTTP_WORKER_H
-#define CONVOHTTP_WORKER_H
+#define CONVO_HTTP_WORKER_H
 
 #include <map>
 #include <unordered_set>
