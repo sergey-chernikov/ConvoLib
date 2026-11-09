@@ -12,12 +12,13 @@
 namespace convo {
    class FixedDecimalValue
    {
+      static constexpr uint8_t PREC = 2;
    public:
       FixedDecimalValue(const FixedDecimalValue& v) : precision_(v.precision_)
          , significand_(v.significand_) {}
-      FixedDecimalValue(uint8_t precision = 2, int64_t val = 0) : precision_(precision)
+      FixedDecimalValue(uint8_t precision = PREC, int64_t val = 0) : precision_(precision)
          , significand_{ val } {}
-      FixedDecimalValue(double val, uint8_t precision = 2) : precision_(precision)
+      FixedDecimalValue(double val, uint8_t precision = PREC) : precision_(precision)
          , significand_(val * powerOf10(precision)) {}
       ~FixedDecimalValue() noexcept = default;
 
@@ -29,6 +30,22 @@ namespace convo {
       inline bool operator==(const FixedDecimalValue& v) const
       {
          return (significand_ == v.significand_) && (precision_ == v.precision_);
+      }
+      inline bool operator>(const FixedDecimalValue& v) const
+      {
+         return (toDouble() > v.toDouble());
+      }
+      inline bool operator>=(const FixedDecimalValue& v) const
+      {
+         return (toDouble() >= v.toDouble());
+      }
+      inline bool operator<(const FixedDecimalValue& v) const
+      {
+         return (toDouble() < v.toDouble());
+      }
+      inline bool operator<=(const FixedDecimalValue& v) const
+      {
+         return (toDouble() <= v.toDouble());
       }
       inline FixedDecimalValue operator=(const FixedDecimalValue& v)
       {
@@ -56,7 +73,7 @@ namespace convo {
       }
 
    protected:
-      uint8_t precision_{ 2 };
+      uint8_t precision_{ PREC };
       int64_t significand_{ 0 };
 
    private:
