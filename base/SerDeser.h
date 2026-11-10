@@ -35,6 +35,10 @@ namespace convo {
       {
          return (toDouble() > v.toDouble());
       }
+      inline bool operator>(const double v) const
+      {
+         return (toDouble() > v);
+      }
       inline bool operator>=(const FixedDecimalValue& v) const
       {
          return (toDouble() >= v.toDouble());
@@ -42,6 +46,10 @@ namespace convo {
       inline bool operator<(const FixedDecimalValue& v) const
       {
          return (toDouble() < v.toDouble());
+      }
+      inline bool operator<(const double v) const
+      {
+         return (toDouble() < v);
       }
       inline bool operator<=(const FixedDecimalValue& v) const
       {
