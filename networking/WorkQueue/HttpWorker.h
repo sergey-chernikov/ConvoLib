@@ -194,7 +194,7 @@ namespace convo {
    class HttpWorkerQueue : public WorkerQueue
    {
    public:
-      bool accepts(const std::shared_ptr<InData>&) const override;
+      bool accepts(const std::shared_ptr<InData>&) override;
    };
 
 }

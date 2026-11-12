@@ -430,7 +430,7 @@ HttpWorker::HttpWorker(const std::shared_ptr<spdlog::logger>& logger
 {}
 
 
-bool HttpWorkerQueue::accepts(const std::shared_ptr<InData>& in) const
+bool HttpWorkerQueue::accepts(const std::shared_ptr<InData>& in)
 {
    if (!in) {
       return false;

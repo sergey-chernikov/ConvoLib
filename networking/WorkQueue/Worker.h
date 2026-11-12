@@ -35,12 +35,22 @@ namespace convo {
    };
 
    using Callback = std::function<ProcessingResult(const std::shared_ptr<OutData>&)>;
+   class Worker;
+   class WorkerPool;
 
    class WorkerQueue
    {
    public:
-      virtual bool accepts(const std::shared_ptr<InData>&) const { return true; }
+      virtual ~WorkerQueue();
+      virtual void assign(const WorkerPool*);
+      virtual bool accepts(const std::shared_ptr<InData>&) { return true; }
       virtual std::string name() const = 0;
+      virtual bool needsNewThread() const;
+      virtual bool needsNewInstance(const std::shared_ptr<InData>&) const { return false; }
+      virtual std::shared_ptr<WorkerQueue> makeInstance(const std::shared_ptr<InData>&) = 0;
+      virtual WorkerQueue* getInstance(const std::shared_ptr<InData>&) { return this; }
+      virtual void newThread(const std::shared_ptr<Worker>&);
+      virtual void stopUnusedThreads();
 
       size_t size() const;
       size_t nbPending() const;
@@ -80,10 +90,20 @@ namespace convo {
       }
 
    protected:
+      explicit WorkerQueue(unsigned nbInst) : nbInstances_{ nbInst } {}
+      virtual void stop();
+      virtual void doProcess(const std::shared_ptr<Worker>&
+         , const std::shared_ptr<InData>&, const Callback&);
+
+   protected:
       std::deque<std::pair<std::shared_ptr<InData>, Callback>> queue_;
       std::condition_variable cvQueue_;
       std::mutex              cvMutex_;
-      mutable std::mutex      dataMutex_;
+      mutable std::mutex      dataMutex_, thrMutex_;
+      unsigned threshSize_{ 1 }, limit_{ 1 };
+      unsigned nbInstances_{ 0 };
+      std::vector<std::pair<std::jthread, std::shared_ptr<Worker>>>  threads_;
+      std::atomic_int   nbProcessing_{ 0 };
    };
 
    class Worker
@@ -95,12 +115,12 @@ namespace convo {
       virtual void cancel() { isRunning_ = false; }
       bool isRunning() const { return isRunning_; }
       virtual bool isReady() const { return true; }
-      virtual void setQueue(const std::shared_ptr<WorkerQueue>& q) { queue_ = q; }
+      virtual void setQueue(WorkerQueue* q) { queue_ = q; }
       virtual void pushBack(const std::shared_ptr<InData>&, const Callback&);
 
    protected:
       std::atomic_bool  isRunning_{ true };
-      std::shared_ptr<WorkerQueue>  queue_;
+      std::atomic<WorkerQueue*> queue_{ nullptr };
    };
 
    class Handler
@@ -156,6 +176,7 @@ namespace convo {
 
    class WorkerPool
    {
+      friend class WorkerQueue;
    public:
       WorkerPool(const std::vector<std::shared_ptr<WorkerQueue>>& queues = {}
          , const unsigned nbThreadsThreshold = 1
@@ -164,23 +185,15 @@ namespace convo {
 
       virtual void processQueued(const std::shared_ptr<InData>&, const Callback&);
       void cancel();
-      size_t nbThreads() const;
       virtual bool finished() const;
 
    protected:  // allow different worker types based on input data to allow by-data thread affinity
       virtual std::shared_ptr<Worker> worker(const std::shared_ptr<InData>&) = 0;
-      virtual void newThread(const std::shared_ptr<Worker>&
-         , const std::shared_ptr<WorkerQueue>&, unsigned qIndex);
-      virtual void doProcess(const std::shared_ptr<Worker>&
-         , const std::shared_ptr<InData>&, const Callback&);
 
    protected:
       const unsigned int threadLimit_;
       const unsigned int nbThreadsThreshold_;
-      const std::vector<std::shared_ptr<WorkerQueue>> queues_;
-      std::map<unsigned, std::vector<std::pair<std::jthread, std::shared_ptr<Worker>>>> threads_;
-      mutable std::mutex      threadsMutex_;
-      std::vector<std::atomic_int>   nbProcessing_;
+      std::vector<std::shared_ptr<WorkerQueue>> queues_;
    };
 
 }
