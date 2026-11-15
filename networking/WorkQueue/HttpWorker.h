@@ -13,10 +13,11 @@ namespace convo {
 
    struct MTLSsettings
    {
-      std::string caRemoteCert;
-      std::string ourKey;
-      std::string ourCert;
-      std::string ourCertPass;
+      std::string caRemoteCert{};
+      std::string ourKey{};
+      std::string ourCert{};
+      std::string ourCertPass{};
+      unsigned overallTimeoutS{23};
 
       bool empty() const { return (caRemoteCert.empty() && ourKey.empty() &&
          ourCert.empty()); }
