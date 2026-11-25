@@ -42,14 +42,14 @@ namespace convo {
    {
    public:
       virtual ~WorkerQueue();
-      virtual void assign(const WorkerPool*);
+      virtual void assign(WorkerPool*);
       virtual bool accepts(const std::shared_ptr<InData>&) { return true; }
       virtual std::string name() const = 0;
       virtual bool needsNewThread() const;
       virtual bool needsNewInstance(const std::shared_ptr<InData>&) const { return false; }
       virtual std::shared_ptr<WorkerQueue> makeInstance(const std::shared_ptr<InData>&) = 0;
       virtual WorkerQueue* getInstance(const std::shared_ptr<InData>&) { return this; }
-      virtual void newThread(const std::shared_ptr<Worker>&);
+      virtual void newThread(const std::shared_ptr<InData>&);
       virtual void stopUnusedThreads();
 
       size_t size() const;
@@ -83,10 +83,10 @@ namespace convo {
 
       std::pair<std::shared_ptr<InData>, Callback> pop();
 
-      void wait(const std::chrono::milliseconds& d = std::chrono::milliseconds{ 10 })
+      void wait()
       {
          std::unique_lock<std::mutex> lock(cvMutex_);
-         cvQueue_.wait_for(lock, d);
+         cvQueue_.wait_for(lock, procDelay_);
       }
 
    protected:
@@ -100,9 +100,12 @@ namespace convo {
       std::condition_variable cvQueue_;
       std::mutex              cvMutex_;
       mutable std::mutex      dataMutex_, thrMutex_;
+      WorkerPool* wp_{ nullptr };
       unsigned threshSize_{ 1 }, limit_{ 1 };
+      std::chrono::milliseconds  procDelay_{ 10 };
       unsigned nbInstances_{ 0 };
-      std::vector<std::pair<std::jthread, std::shared_ptr<Worker>>>  threads_;
+      std::vector<std::jthread>  threads_;
+      std::vector<std::weak_ptr<Worker>>  workers_;
       std::atomic_int   nbProcessing_{ 0 };
    };
 

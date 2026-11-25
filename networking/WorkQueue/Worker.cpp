@@ -63,11 +63,7 @@ void WorkerPool::processQueued(const std::shared_ptr<InData>& inData
 	}
 	if (queue) {
 		if (queue->needsNewThread()) {
-			auto w = worker(inData);
-			if (!w) {
-				throw std::runtime_error("worker creation failed for " + inData->name());
-			}
-			queue->newThread(w);
+			queue->newThread(inData);
 		}
 		else {
 			queue->stopUnusedThreads();
@@ -103,8 +99,9 @@ convo::WorkerQueue::~WorkerQueue()
 	stop();
 }
 
-void WorkerQueue::assign(const WorkerPool* wp)
+void WorkerQueue::assign(WorkerPool* wp)
 {
+	wp_ = wp;
 	threshSize_ = wp->nbThreadsThreshold_;
 	limit_ = wp->threadLimit_;
 }
@@ -129,13 +126,12 @@ bool WorkerQueue::needsNewThread() const
 size_t WorkerQueue::nbPending() const
 {
 	size_t nb = 0;
-	const auto& now = WorkerClock::now();
+	const auto expireExec = WorkerClock::now() + procDelay_ / 2;
 	{
 		std::unique_lock<std::mutex> dataLock(dataMutex_);
 		for (const auto& item : queue_) {
-			if (item.first && (item.first->execAfter <= now)) {
-				nb++;
-			}
+			if (!item.first) { continue; }
+			if (item.first->execAfter < expireExec) { nb++; }
 		}
 	}
 	return nb;
@@ -156,8 +152,10 @@ void WorkerQueue::cancel()
 	clear();
 
 	std::lock_guard<std::mutex> thrLock(thrMutex_);
-	for (const auto& thread : threads_) {
-		thread.second->cancel();
+	for (const auto& w : workers_) {
+		const auto& worker = w.lock();
+		if (!worker) { continue; }
+		worker->cancel();
 	}
 }
 
@@ -165,8 +163,8 @@ void WorkerQueue::stop()
 {
 	std::lock_guard<std::mutex> lock(thrMutex_);
 	for (auto& thread : threads_) {
-		if (thread.first.joinable()) {
-			thread.first.join();
+		if (thread.joinable()) {
+			thread.join();
 		}
 	}
 }
@@ -177,12 +175,12 @@ void convo::WorkerQueue::doProcess(const std::shared_ptr<Worker>& w
 	try {
 		const auto& outResult = w->process(data);
 		if (outResult.empty()) {
-			w->pushBack(data, cb);
-			return;
+			return w->pushBack(data, cb);
 		}
 		bool retry = false;
 		for (const auto& outData : outResult) {
-			if (!outData) { continue; } else if (cb) {
+			if (!outData) { continue; }
+			else if (cb) {
 				if (cb(outData) == ProcessingResult::Retry) {
 					retry = true;
 				}
@@ -218,29 +216,44 @@ std::pair<std::shared_ptr<InData>, Callback> WorkerQueue::pop()
 	return data;
 }
 
-void WorkerQueue::newThread(const std::shared_ptr<Worker>& worker)
+#include <iostream>
+
+void WorkerQueue::newThread(const std::shared_ptr<InData>& inData)
 {
-	threads_.push_back({ std::jthread([this, worker]
+	if (!wp_) { throw std::runtime_error("no worker pool assigned"); }
+
+	threads_.push_back(std::jthread([this, inData]
 	{
+		std::shared_ptr<Worker>	worker;
+		try {
+			worker = wp_->worker(inData);
+			if (!worker) { throw std::runtime_error("is null"); }
+		} catch (const std::exception& e) {
+			const auto& strErr = std::format("worker creation failed: {}", e.what());
+			std::cerr << strErr << "\n";
+			return;
+		}
+		{
+			std::lock_guard<std::mutex> lock(thrMutex_);
+			workers_.push_back(worker);
+		}
 		worker->setQueue(this);
-		std::weak_ptr<Worker> w = worker;
-		while (w.lock() && w.lock()->isRunning()) {
+		while (worker->isRunning()) {
 			const auto nbPendingItems = nbPending();
 			if (nbPendingItems == 0) {
 				wait();
 			} else if (nbPendingItems > 10000000) {
 				clear();
-				const auto& wo = w.lock();
-				if (wo && wo->isRunning()) {
-					wo->cancel();
+				if (worker->isRunning()) {
+					worker->cancel();
 				}
 				throw std::runtime_error("worker doesn't manage with processing - "
 					+ std::to_string(nbPendingItems) + " items accumulated");
 			}
-			if (!w.lock() || !w.lock()->isRunning()) {
+			if (!worker->isRunning()) {
 				break;
 			}
-			if (!w.lock()->isReady()) {
+			if (!worker->isReady()) {
 				std::this_thread::sleep_for(std::chrono::milliseconds{ 10 });
 				continue;
 			}
@@ -248,20 +261,17 @@ void WorkerQueue::newThread(const std::shared_ptr<Worker>& worker)
 			if (!data.first) {
 				continue;
 			}
-			if (!w.lock() || !w.lock()->isRunning()) {
+			if (!worker->isRunning()) {
 				break;
 			}
 			nbProcessing_++;
-			doProcess(w.lock(), data.first, data.second);
+			doProcess(worker, data.first, data.second);
 			nbProcessing_--;
 			if (empty() && (nbProcessing_ < 2) && (threads_.size() > 1)) {
-				const auto& wo = w.lock();
-				if (wo) {
-					wo->cancel();
-				}
+				worker->cancel();
 			}
 		}
-	}), worker });
+	}));
 }
 
 void WorkerQueue::stopUnusedThreads()
@@ -269,15 +279,17 @@ void WorkerQueue::stopUnusedThreads()
 	std::lock_guard<std::mutex> lock(thrMutex_);
 	if ((threads_.size() > 1) && ((size() + threshSize_) < limit_)) {
 		auto itThr = threads_.begin();
-		while ((threads_.size() > 1) && (itThr != threads_.end())) {
-			if (itThr->second->isRunning()) {
-				itThr++;
-			} else {
-				if (itThr->first.joinable()) {
-					itThr->first.join();
+		int i = 0;
+		while ((threads_.size() > 1) && (i < workers_.size())) {
+			const auto& worker = workers_.at(i).lock();
+			if (!worker || !worker->isRunning()) {
+				auto itThr = threads_.begin() + i;
+				if (itThr->joinable()) {
+					itThr->join();
 				}
 				itThr = threads_.erase(itThr);
 			}
+			++i;
 		}
 	}
 }
